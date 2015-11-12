@@ -2,6 +2,4 @@
 .PHONY: lint
 
 lint:
-	activator scapegoat
-	activator scalastyle
-	activator compile
+	activator "; scalastyle; scapegoat; compile"
