@@ -6,3 +6,6 @@ hardlint:
 
 softlint:
 	activator scalastyle
+
+test:
+	activator test
