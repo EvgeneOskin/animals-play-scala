@@ -1,3 +1,4 @@
+// See the LICENCE file distributed with this work for licence info.
 package controllers
 
 import play.api._
