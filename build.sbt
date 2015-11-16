@@ -19,4 +19,7 @@ resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
 // other, legacy style, accesses its actions statically.
 routesGenerator := InjectedRoutesGenerator
 
-wartremoverErrors ++= Warts.unsafe
+resolvers += Resolver.url("scoverage-bintray", url("https://dl.bintray.com/sksamuel/sbt-plugins/"))(Resolver.ivyStylePatterns)
+
+coverageExcludedPackages := "<empty>;router;.*javascript.*;views.html;"
+

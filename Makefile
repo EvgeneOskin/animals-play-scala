@@ -2,10 +2,11 @@
 .PHONY: hardlint softlint test
 
 hardlint:
-	activator "; scalastyle; scapegoat; compile"
+	./activator "; scalastyle; scapegoat; compile"
 
 softlint:
-	activator scalastyle
+	./activator scalastyle
 
 test:
-	activator test
+	./activator clean coverage test
+	./activator coverageReport
