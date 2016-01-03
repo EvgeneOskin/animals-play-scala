@@ -10,7 +10,8 @@ libraryDependencies ++= Seq(
   jdbc,
   cache,
   ws,
-  specs2 % Test
+  specs2 % Test,
+  "ws.securesocial" %% "securesocial" % "master-SNAPSHOT"
 )
 
 resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
@@ -20,6 +21,7 @@ resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
 routesGenerator := InjectedRoutesGenerator
 
 resolvers += Resolver.url("scoverage-bintray", url("https://dl.bintray.com/sksamuel/sbt-plugins/"))(Resolver.ivyStylePatterns)
+resolvers += Resolver.sonatypeRepo("snapshots")
 
 coverageExcludedPackages := "<empty>;router;.*javascript.*;views.html;"
 
