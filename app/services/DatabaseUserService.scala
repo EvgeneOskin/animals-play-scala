@@ -1,18 +1,19 @@
 // See the LICENCE file distributed with this work for licence info.
-package service
+package services
 
 import play.api.Logger
 import securesocial.core._
 import securesocial.core.providers.{ UsernamePasswordProvider, MailToken }
 import scala.concurrent.Future
 import securesocial.core.services.{ UserService, SaveMode }
+import models.{ User }
 
 /**
- * A Sample In Memory user service in Scala
+ * A Sample In database user service in Scala
  *
  */
-class UserService extends UserService[User] {
-  val logger = Logger("application.controllers.InMemoryUserService")
+class DatabaseUserService extends UserService[User] {
+  val logger = Logger("application.controllers.DatabaseUserService")
 
   var users = Map[(String, String), User]()
   private var tokens = Map[String, MailToken]()
@@ -153,7 +154,3 @@ class UserService extends UserService[User] {
     }
   }
 }
-
-// a simple User class that can have multiple identities
-case class User(main: BasicProfile, identities: List[BasicProfile])
-

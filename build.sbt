@@ -4,14 +4,16 @@ version := "1.0-SNAPSHOT"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
-scalaVersion := "2.11.6"
+scalaVersion := "2.11.7"
 
 libraryDependencies ++= Seq(
   jdbc,
   cache,
   ws,
   specs2 % Test,
-  "ws.securesocial" %% "securesocial" % "master-SNAPSHOT"
+  "org.postgresql" % "postgresql" % "9.4-1201-jdbc41",
+  "ws.securesocial" %% "securesocial" % "3.0-M4",
+  "com.typesafe.play" %% "play-mailer" % "3.0.0-M1"
 )
 
 resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
@@ -21,7 +23,7 @@ resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
 routesGenerator := InjectedRoutesGenerator
 
 resolvers += Resolver.url("scoverage-bintray", url("https://dl.bintray.com/sksamuel/sbt-plugins/"))(Resolver.ivyStylePatterns)
-resolvers += Resolver.sonatypeRepo("snapshots")
+resolvers += Resolver.sonatypeRepo("releases")
 
 coverageExcludedPackages := "<empty>;router;.*javascript.*;views.html;"
 
