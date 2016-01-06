@@ -11,6 +11,10 @@ class Application @Inject() (
 ) extends Controller with securesocial.core.SecureSocial {
 
   def index = UserAwareAction { implicit request =>
-    Ok(views.html.index("Your new application is ready."))
+    val userName = request.user match {
+      case Some(user) => user.fullName
+      case _ => "guest"
+    }
+    Ok(views.html.index("Your new application is ready.", userName))
   }
 }
