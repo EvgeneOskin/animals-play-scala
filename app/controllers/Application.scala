@@ -10,7 +10,7 @@ class Application @Inject() (
   override implicit val env: RuntimeEnvironment
 ) extends Controller with securesocial.core.SecureSocial {
 
-  def index = SecuredAction { implicit request =>
+  def index = UserAwareAction { implicit request =>
     Ok(views.html.index("Your new application is ready."))
   }
 }
