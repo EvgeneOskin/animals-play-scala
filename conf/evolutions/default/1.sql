@@ -3,7 +3,7 @@
 # --- !Ups
 
 CREATE TABLE OAuth1Info (
-    userId SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     token VARCHAR(255) NOT NULL,
     secret VARCHAR(255) NOT NULL
 );
@@ -24,7 +24,8 @@ CREATE TABLE PasswordInfo (
 );
 
 CREATE TABLE UserProfile (
-    userId SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    userId VARCHAR(255) NOT NULL,
     providerId VARCHAR(255) NOT NULL,
     firstName VARCHAR(255) NULL,
     lastName VARCHAR(255) NULL,

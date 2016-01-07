@@ -1,10 +1,14 @@
 // See the LICENCE file distributed with this work for licence info.
 package services
 
+import org.joda.time.DateTime
+import javax.inject.Inject
+import scala.concurrent.Future
+import scala.concurrent.duration._
 import play.api.Logger
+import play.api.cache._
 import securesocial.core._
 import securesocial.core.providers.{ UsernamePasswordProvider, MailToken }
-import scala.concurrent.Future
 import securesocial.core.services.{ UserService, SaveMode }
 import models.{ User }
 
@@ -12,52 +16,27 @@ import models.{ User }
  * A Sample In database user service in Scala
  *
  */
-class DatabaseUserService extends UserService[User] {
+class DatabaseUserService @Inject() (
+    cache: CacheApi
+) extends UserService[User] {
   val logger = Logger("application.controllers.DatabaseUserService")
-
-  var users = Map[(String, String), User]()
-  private var tokens = Map[String, MailToken]()
 
   def find(providerId: String, userId: String): Future[Option[BasicProfile]] = {
     if (logger.isDebugEnabled) {
       logger.debug("users = %s".format(users))
     }
-    val result = for (
-      user <- users.values;
-      basicProfile <- user.identities.find(su => su.providerId == providerId && su.userId == userId)
-    ) yield {
-      basicProfile
-    }
-    Future.successful(result.headOption)
+    Future.successful(User.find(providerId, userId))
   }
 
   def findByEmailAndProvider(email: String, providerId: String): Future[Option[BasicProfile]] = {
     if (logger.isDebugEnabled) {
       logger.debug("users = %s".format(users))
     }
-    val someEmail = Some(email)
-    val result = for (
-      user <- users.values;
-      basicProfile <- user.identities.find(su => su.providerId == providerId && su.email == someEmail)
-    ) yield {
-      basicProfile
-    }
-    Future.successful(result.headOption)
+    Future.successful(User.findByEmailAndProvider(email, providerId))
   }
 
   private def findProfile(p: BasicProfile) = {
-    users.find {
-      case (key, value) if value.identities.exists(su => su.providerId == p.providerId && su.userId == p.userId) => true
-      case _ => false
-    }
-  }
-
-  private def updateProfile(user: BasicProfile, entry: ((String, String), User)): Future[User] = {
-    val identities = entry._2.identities
-    val updatedList = identities.patch(identities.indexWhere(i => i.providerId == user.providerId && i.userId == user.userId), Seq(user), 1)
-    val updatedUser = entry._2.copy(identities = updatedList)
-    users = users + (entry._1 -> updatedUser)
-    Future.successful(updatedUser)
+    User.find(p.providerId, p.userId)
   }
 
   def save(user: BasicProfile, mode: SaveMode): Future[User] = {
@@ -99,32 +78,25 @@ class DatabaseUserService extends UserService[User] {
 
   def saveToken(token: MailToken): Future[MailToken] = {
     Future.successful {
-      tokens += (token.uuid -> token)
+      cache.set(token.uuid, token, (token.expirationTime.getMillis - (new DateTime).getMillis) millis)
       token
     }
   }
 
   def findToken(token: String): Future[Option[MailToken]] = {
-    Future.successful { tokens.get(token) }
+    Future.successful { cache.get[MailToken](token) }
   }
 
   def deleteToken(uuid: String): Future[Option[MailToken]] = {
     Future.successful {
-      tokens.get(uuid) match {
-        case Some(token) =>
-          tokens -= uuid
-          Some(token)
-        case None => None
-      }
+      val token =cache.get[MailToken](uuid)
+      cache.remove(uuid)
+      token
     }
   }
 
-  //  def deleteTokens(): Future {
-  //    tokens = Map()
-  //  }
-
   def deleteExpiredTokens() {
-    tokens = tokens.filter(!_._2.isExpired)
+    // Setting Cache with duration provide cleaning.
   }
 
   override def updatePasswordInfo(user: User, info: PasswordInfo): Future[Option[BasicProfile]] = {
