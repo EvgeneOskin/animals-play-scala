@@ -1,3 +1,4 @@
+// See the LICENCE file distributed with this work for licence info.
 package services
 import java.lang.reflect.Constructor
 import play.api.inject._

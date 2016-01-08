@@ -1,3 +1,4 @@
+// See the LICENCE file distributed with this work for licence info.
 package models
 
 import java.math.BigDecimal
@@ -111,40 +112,39 @@ object User {
       val finalStm = query(conn)
       val res = finalStm.executeQuery
       if (res.next) {
-        val oauth1Info = if (res.getLong("UserProfile.oAuth1InfoId") == 0) None
-        else
-           Some(new OAuth1Info(
-            res.getString("OAuth1Info.token"),
-            res.getString("OAuth1Info.secret")
-          ))
-        val oauth2Info = if (res.getLong("UserProfile.oAuth2InfoId") == 0) None
-        else
+        val oauth1Info = if (res.getLong("UserProfile.oAuth1InfoId") == 0) {
+          None
+        } else {
+          val keys = Seq("token", "secret").map("OAuth1Info." + _)
+          val values = keys.map { res.getString(_) }
+           Some(new OAuth1Info(values(0), values(2)))
+        }
+        val oauth2Info = if (res.getLong("UserProfile.oAuth2InfoId") == 0) {
+          None
+        } else {
+          val keys = Seq("accessToken", "tokenType", "refreshToken").map("OAuth2Info." + _)
+          val values = keys.map { res.getString(_) }
           Some(new OAuth2Info(
-            res.getString("OAuth2Info.accessToken"),
-            Some(res.getString("OAuth2Info.tokenType")),
-            Some(res.getInt("OAuth2Info.expiresIn")),
-            Some(res.getString("OAuth2Info.refreshToken"))
+            values(0), Some(values(1)),
+            Some(res.getInt("OAuth2Info.expiresIn")), Some(values(2))
           ))
-        val passwordInfo = if (res.getLong("UserProfile.passwordInfoId") == 0) None
-        else
-          Some(new PasswordInfo(
-            res.getString("PasswordInfo.hasher"),
-            res.getString("PasswordInfo.password"),
-            Some(res.getString("PasswordInfo.salt"))
-          ))
-
+        }
+        val passwordInfo = if (res.getLong("UserProfile.passwordInfoId") == 0) {
+          None
+        } else {
+          val keys = Seq("hasher", "password", "salt").map("PasswordInfo." + _)
+          val values = keys.map { res.getString(_) }
+          Some(new PasswordInfo(values(0), values(1), Some(values(2))))
+        }
+        val keys = Seq("providerId", "userId", "firstName", "email", "avatarUrl", "authMethod").map("UserProfile." + _)
+        val values = keys.map { res.getString(_) }
         profile = Some(new BasicProfile(
-          res.getString("UserProfile.providerId"),
-          res.getString("UserProfile.userId"),
-          Some(res.getString("UserProfile.firstName")),
-          Some(res.getString("UserProfile.lastName")),
-          Some(res.getString("UserProfile.firstName")  + " " + res.getString("UserProfile.lastName")),
-          Some(res.getString("UserProfile.email")),
-          Some(res.getString("UserProfile.avatarUrl")),
-          new AuthenticationMethod(res.getString("UserProfile.authMethod")),
-          oauth1Info,
-          oauth2Info,
-          passwordInfo
+          values(0), values(1),
+          Some(values(2)), Some(values(3)),
+          Some(values(2) + " " + values(3)),
+          Some(values(4)), Some(values(5)),
+          new AuthenticationMethod(values(6)),
+          oauth1Info, oauth2Info, passwordInfo
         ))
       }
     }

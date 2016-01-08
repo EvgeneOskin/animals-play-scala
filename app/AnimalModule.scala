@@ -1,3 +1,4 @@
+// See the LICENCE file distributed with this work for licence info.
 import java.lang.reflect.Constructor
 import play.api.inject._
 import play.api.{ Configuration, Environment }
