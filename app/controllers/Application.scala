@@ -12,9 +12,9 @@ class Application @Inject() (
 
   def index = UserAwareAction { implicit request =>
     val userName = request.user match {
-      case Some(user) => user.fullName
+      case Some(user) => user.toString
       case _ => "guest"
     }
-    Ok(views.html.index("Your new application is ready.", userName))
+    Ok(views.html.index("Your new application is ready.")(userName))
   }
 }

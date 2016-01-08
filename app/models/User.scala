@@ -4,6 +4,7 @@ import java.math.BigDecimal
 import java.sql.{Types, Connection, PreparedStatement}
 import scala.util.{Try, Success, Failure}
 import securesocial.core._
+import securesocial.core.providers.{ UsernamePasswordProvider }
 
 case class User(main: BasicProfile, identities: List[BasicProfile])
 
@@ -41,6 +42,66 @@ object User {
   join PasswordInfo on UserProfile.passwordInfoId = PasswordInfo.id
   """
 
+  def find(providerId: String, userId: String, baseFindQuery: String = baseQuery): Option[BasicProfile] = {
+    findUserProfile { conn =>
+      val query = s"""
+        $baseFindQuery
+        where UserProfile.providerId = ? && UserProfile.userId = ?
+        limit 1
+      """
+      val prep = conn.prepareStatement(query)
+      JDBCHelper.setValue(prep, 1, providerId)
+      JDBCHelper.setValue(prep, 2, userId)
+      prep
+    }
+  }
+
+  def findByEmailAndProvider(email: String, providerId: String): Option[BasicProfile] = {
+    findUserProfile { conn =>
+      val query = s"""
+        $baseQuery
+        where UserProfile.providerId = ? && UserProfile.email = ?
+        limit 1
+      """
+      val prep = conn.prepareStatement(query)
+      JDBCHelper.setValue(prep, 1, providerId)
+      JDBCHelper.setValue(prep, 2, email)
+      prep
+    }
+  }
+
+  def save(entry: BasicProfile): BasicProfile = {
+    import play.api.db._
+    import play.api.Play.current
+
+    var insertedId: String = ""
+    DB.withConnection { conn =>
+      insertUserProfile(conn, entry) match {
+        case Success(id: Int) => insertedId = id.toString
+        case Failure(e) => throw e
+      }
+    }
+    entry
+  }
+
+  def updatePasswordInfo(profile: BasicProfile, entry: PasswordInfo): Try[Int] = {
+    import play.api.db._
+    import play.api.Play.current
+
+    var updatedRowsCount = 0
+    DB.withConnection { conn =>
+      val id: Try[Int] = getPasswordInfoId(conn, profile.userId)
+      updatePasswordInfo(conn, id, entry) match {
+        case Success(updatedRows) => updatedRowsCount = updatedRows
+        case Failure(e) => throw e
+      }
+    }
+    updatedRowsCount match {
+      case 0 => Failure(new DBException("Do Not update password info"))
+      case count => Success(count)
+    }
+  }
+
   private def findUserProfile(query: Connection => PreparedStatement): Option[BasicProfile] = {
     import play.api.db._
     import play.api.Play.current
@@ -49,7 +110,7 @@ object User {
     DB.withConnection { conn =>
       val finalStm = query(conn)
       val res = finalStm.executeQuery
-      if (res.next()) {
+      if (res.next) {
         val oauth1Info = if (res.getLong("UserProfile.oAuth1InfoId") == 0) None
         else
            Some(new OAuth1Info(
@@ -90,93 +151,42 @@ object User {
     profile
   }
 
-  def find(providerId: String, userId: String): Option[BasicProfile] = {
-    findUserProfile { conn =>
-      val query = s"""
-        $baseQuery
-        where UserProfile.providerId = ? && UserProfile.userId = ?
-        limit 1
-      """
-      val prep = conn.prepareStatement(query)
-      prep.setString(1, providerId)
-      prep.setString(2, userId)
-      prep
-    }
-  }
-
-  def findByEmailAndProvider(email: String, providerId: String): Option[BasicProfile] = {
-    findUserProfile { conn =>
-      val query = s"""
-        $baseQuery
-        where UserProfile.providerId = ? && UserProfile.email = ?
-        limit 1
-      """
-      val prep = conn.prepareStatement(query)
-      prep.setString(1, providerId)
-      prep.setString(2, email)
-      prep
-    }
-  }
-
-  def insertRow(stm: PreparedStatement): Try[Option[Int]] = {
-    val count = stm.executeUpdate
-    if (count == 1) {
-      val keys = stm.getGeneratedKeys
-      keys.next
-      Success(Some(keys.getInt(1)))
+  def getPasswordInfoId(conn: Connection, userId: String): Try[Int] = {
+    val stm = conn.prepareStatement("""
+      SELECT UserProfile.passwordInfoId FROM UserProfile
+      WHERE userId=? && providerId=?
+    """)
+    JDBCHelper.setValue(stm, 1, userId)
+    JDBCHelper.setValue(stm, 2, UsernamePasswordProvider.UsernamePassword)
+    val rs = stm.executeQuery
+    if (rs.next) {
+      Success(rs.getInt("UserProfile.passwordInfoId"))
     } else {
-      Failure(new DBException("Can not insert Row: \n" + stm))
+      Failure(new DBException("No such passwordInfo"))
     }
   }
 
-  def insertInfo(conn: Connection, entry: Option[OAuth1Info]): Try[Option[Int]] = {
-    entry match {
-      case None => Success(None)
-      case Some(OAuth1Info(token, secret)) => {
+
+  def updatePasswordInfo(conn: Connection, passwordInfoId: Try[Int], entry: PasswordInfo): Try[Int] = {
+    passwordInfoId match {
+      case Success(id) => {
         val stm = conn.prepareStatement("""
-          INSERT INTO OAuth1Info(token, secret) (?, ?)
-        """)
-        stm.setString(1, token)
-        stm.setString(2, secret)
-        insertRow(stm)
+          UPDATE TABLE PasswordInfo
+          SET hasher=?,password=?,salt=?
+          WHERE id=?
+          """)
+        JDBCHelper.setValue(stm, 1, entry.hasher)
+        JDBCHelper.setValue(stm, 2, entry.password)
+        JDBCHelper.setValue(stm, 3, entry.salt)
+        JDBCHelper.setValue(stm, 4, id)
+        Success(stm.executeUpdate)
       }
+      case other => other
     }
   }
 
-  def insertInfo(conn: Connection, entry: Option[OAuth2Info]): Try[Option[Int]] = {
-    entry match {
-      case None => Success(None)
-      case Some(OAuth2Info(accessToken, tokenType, expiresIn, refreshToken)) => {
-        val stm = conn.prepareStatement("""
-          INSERT INTO OAuth2Info(accessToken, tokenType, expiresIn, refreshToken)
-          (?, ?, ?, ?)
-        """)
-        stm.setString(1, accessToken)
-        setValue(stm, 2, tokenType)
-        setValue(stm, 3, expiresIn)
-        setValue(stm, 4, refreshToken)
-        insertRow(stm)
-      }
-    }
-  }
 
-  def insertInfo(conn: Connection, entry: Option[PasswordInfo]): Try[Option[Int]] = {
-    entry match {
-      case None => Success(None)
-      case Some(PasswordInfo(hasher, password, salt)) => {
-        val stm = conn.prepareStatement("""
-          INSERT INTO PasswordInfo(hasher, password, salt)
-          (?, ?, ?)
-        """)
-        stm.setString(1, hasher)
-        stm.setString(2, password)
-        setValue(stm, 3, salt)
-        insertRow(stm)
-      }
-    }
-  }
-
-  def insertUserProfile(conn: Connection, entry: BasicProfile): Try[Option[Int]] = {
+  def insertUserProfile(conn: Connection, entry: BasicProfile): Try[Int] = {
     entry match {
       case BasicProfile(providerId, userId, firstName, lastName, fullName, email, avatarUrl, authMethod, oAuth1Info, oAuth2Info, passwordInfo) => {
         val stm = conn.prepareStatement("""
@@ -184,62 +194,121 @@ object User {
           (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """)
         Seq((3, firstName), (4, lastName), (5, email), (6, avatarUrl)).map { i=>
-          setValue(stm, i._1, i._2)
+          JDBCHelper.setOptionString(stm, i._1, i._2)
         }
         Seq((1, providerId), (2, userId), (7, authMethod.method)).map { i =>
-          setValue(stm, i._1, i._2)
+          JDBCHelper.setValue(stm, i._1, i._2)
         }
-        addRelation(stm, 8, insertInfo(conn, oAuth1Info))
-        addRelation(stm, 9, insertInfo(conn, oAuth2Info))
-        addRelation(stm, 10, insertInfo(conn, passwordInfo))
-        insertRow(stm)
+        JDBCHelper.addRelation(stm, 8, insertOAuth1Info(conn, oAuth1Info))
+        JDBCHelper.addRelation(stm, 9, insertOAuth2Info(conn, oAuth2Info))
+        JDBCHelper.addRelation(stm, 10, insertPassworInfo(conn, passwordInfo))
+        JDBCHelper.insertRow(stm)
       }
+    }
+  }
+
+  def insertOAuth1Info(conn: Connection, entry: Option[OAuth1Info]): Try[Option[Int]] = {
+    entry match {
+      case None => Success(None)
+      case Some(OAuth1Info(token, secret)) => {
+        val stm = conn.prepareStatement("""
+          INSERT INTO OAuth1Info(token, secret) (?, ?)
+        """)
+        JDBCHelper.setValue(stm, 1, token)
+        JDBCHelper.setValue(stm, 2, secret)
+        JDBCHelper.insertRow(stm) match {
+          case Success(id) => Success(Some(id))
+          case Failure(e) => Failure(e)
+        }
+      }
+    }
+  }
+
+  def insertOAuth2Info(conn: Connection, entry: Option[OAuth2Info]): Try[Option[Int]] = {
+    entry match {
+      case None => Success(None)
+      case Some(OAuth2Info(accessToken, tokenType, expiresIn, refreshToken)) => {
+        val stm = conn.prepareStatement("""
+          INSERT INTO OAuth2Info(accessToken, tokenType, expiresIn, refreshToken)
+          (?, ?, ?, ?)
+        """)
+        JDBCHelper.setValue(stm, 1, accessToken)
+        JDBCHelper.setValue(stm, 2, tokenType)
+        JDBCHelper.setValue(stm, 3, expiresIn)
+        JDBCHelper.setValue(stm, 4, refreshToken)
+        JDBCHelper.insertRow(stm) match {
+          case Success(id) => Success(Some(id))
+          case Failure(e) => Failure(e)
+        }
+      }
+    }
+  }
+
+  def insertPassworInfo(conn: Connection, entry: Option[PasswordInfo]): Try[Option[Int]] = {
+    entry match {
+      case None => Success(None)
+      case Some(PasswordInfo(hasher, password, salt)) => {
+        val stm = conn.prepareStatement("""
+          INSERT INTO PasswordInfo(hasher, password, salt)
+          (?, ?, ?)
+        """)
+        JDBCHelper.setValue(stm, 1, hasher)
+        JDBCHelper.setValue(stm, 2, password)
+        JDBCHelper.setValue(stm, 3, salt)
+        JDBCHelper.insertRow(stm) match {
+          case Success(id) => Success(Some(id))
+          case Failure(e) => Failure(e)
+        }
+      }
+    }
+  }
+}
+
+object JDBCHelper {
+
+  def insertRow(stm: PreparedStatement): Try[Int] = {
+    val count = stm.executeUpdate
+    if (count == 1) {
+      val keys = stm.getGeneratedKeys
+      keys.next
+      Success(keys.getInt(1))
+    } else {
+      Failure(new DBException("Can not insert Row: \n" + stm))
     }
   }
 
   def addRelation(stm: PreparedStatement, index: Int, entry: Try[Option[Int]]): PreparedStatement = {
     entry match {
-      case Success(Some(id: Int)) => stm.setBigDecimal(index, new BigDecimal(id))
-      case Success(None) => stm.setNull(index, Types.BIGINT)
+      case Success(some) => setOptionInt(stm, index, some)
       case Failure(e) => throw e
     }
     stm
   }
 
-  def setValue(stm: PreparedStatement, index: Int, str: String): PreparedStatement = {
-    stm.setString(index, str)
+  def setValue(stm: PreparedStatement, index: Int, value: Any): PreparedStatement = {
+    value match {
+      case value: Int => stm.setInt(index, value)
+      case str: String => stm.setString(index, str)
+    }
     stm
   }
 
-  def setValue(stm: PreparedStatement, index: Int, someStr: Option[String]): PreparedStatement = {
-    someStr match {
-      case None => stm.setNull(index, Types.VARCHAR)
+  def setOptionString(stm: PreparedStatement, index: Int, value: Option[String]): PreparedStatement = {
+    value match {
       case Some(str) => stm.setString(index, str)
+      case None => stm.setNull(index, Types.VARCHAR)
     }
     stm
   }
 
-  def setValue(stm: PreparedStatement, index: Int, someInt: Option[Int]): PreparedStatement = {
-    someInt match {
-      case None => stm.setNull(index, Types.INTEGER)
+  def setOptionInt(stm: PreparedStatement, index: Int, value: Option[Int]): PreparedStatement = {
+    value match {
       case Some(value) => stm.setInt(index, value)
+      case None => stm.setNull(index, Types.INTEGER)
     }
     stm
   }
 
-  def save(entry: BasicProfile): BasicProfile = {
-    import play.api.db._
-    import play.api.Play.current
-
-    var insertedId: String = ""
-    DB.withConnection { conn =>
-      insertUserProfile(conn, entry) match {
-        case Success(Some(id: Int)) => insertedId = id.toString
-        case Failure(e) => throw e
-      }
-    }
-    entry
-  }
 }
 
 class DBException (message: String) extends IllegalArgumentException

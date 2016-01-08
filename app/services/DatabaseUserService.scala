@@ -23,38 +23,31 @@ class DatabaseUserService @Inject() (
 
   def find(providerId: String, userId: String): Future[Option[BasicProfile]] = {
     if (logger.isDebugEnabled) {
-      logger.debug("users = %s".format(users))
+      logger.debug("find user for providerId=%s useId=%s".format(providerId, userId))
     }
     Future.successful(User.find(providerId, userId))
   }
 
   def findByEmailAndProvider(email: String, providerId: String): Future[Option[BasicProfile]] = {
     if (logger.isDebugEnabled) {
-      logger.debug("users = %s".format(users))
+      logger.debug("find user for providerId=%s email=%s".format(providerId, email))
     }
     Future.successful(User.findByEmailAndProvider(email, providerId))
-  }
-
-  private def findProfile(p: BasicProfile) = {
-    User.find(p.providerId, p.userId)
   }
 
   def save(user: BasicProfile, mode: SaveMode): Future[User] = {
     mode match {
       case SaveMode.SignUp =>
-        val newUser = User(user, List(user))
-        users = users + ((user.providerId, user.userId) -> newUser)
-        Future.successful(newUser)
+        Future.successful(createNewProfile(user))
+
       case SaveMode.LoggedIn =>
         // first see if there is a user with this BasicProfile already.
         findProfile(user) match {
-          case Some(existingUser) =>
-            updateProfile(user, existingUser)
+          case Some(existingProfile) =>
+            updateProfile(user, existingProfile)
 
           case None =>
-            val newUser = User(user, List(user))
-            users = users + ((user.providerId, user.userId) -> newUser)
-            Future.successful(newUser)
+            Future.successful(createNewProfile(user))
         }
 
       case SaveMode.PasswordChange =>
@@ -66,13 +59,22 @@ class DatabaseUserService @Inject() (
   }
 
   def link(current: User, to: BasicProfile): Future[User] = {
-    if (current.identities.exists(i => i.providerId == to.providerId && i.userId == to.userId)) {
-      Future.successful(current)
-    } else {
-      val added = to :: current.identities
-      val updatedUser = current.copy(identities = added)
-      users = users + ((current.main.providerId, current.main.userId) -> updatedUser)
-      Future.successful(updatedUser)
+    User.find(to.providerId, current.main.userId) match {
+      case Some(_) => Future.successful(current)
+      case None => {
+        val userProfile = new BasicProfile(
+          to.providerId, current.main.userId,
+          to.firstName, to.lastName,
+          to.fullName, to.email,
+          to.avatarUrl, to.authMethod,
+          to.oAuth1Info, to.oAuth2Info,
+          to.passwordInfo
+        )
+        User.save(userProfile)
+        val added = to :: current.identities
+        val updatedUser = current.copy(identities = added)
+        Future.successful(updatedUser)
+      }
     }
   }
 
@@ -102,14 +104,10 @@ class DatabaseUserService @Inject() (
   override def updatePasswordInfo(user: User, info: PasswordInfo): Future[Option[BasicProfile]] = {
     Future.successful {
       for (
-        found <- users.values.find(_ == user);
-        identityWithPasswordInfo <- found.identities.find(_.providerId == UsernamePasswordProvider.UsernamePassword)
+        identityWithPasswordInfo <- findPasswordProfiles(user.main)
       ) yield {
-        val idx = found.identities.indexOf(identityWithPasswordInfo)
         val updated = identityWithPasswordInfo.copy(passwordInfo = Some(info))
-        val updatedIdentities = found.identities.patch(idx, Seq(updated), 1)
-        val updatedEntry = found.copy(identities = updatedIdentities)
-        users = users + ((updatedEntry.main.providerId, updatedEntry.main.userId) -> updatedEntry)
+        User.updatePasswordInfo(user.main, info)
         updated
       }
     }
@@ -118,11 +116,27 @@ class DatabaseUserService @Inject() (
   override def passwordInfoFor(user: User): Future[Option[PasswordInfo]] = {
     Future.successful {
       for (
-        found <- users.values.find(u => u.main.providerId == user.main.providerId && u.main.userId == user.main.userId);
-        identityWithPasswordInfo <- found.identities.find(_.providerId == UsernamePasswordProvider.UsernamePassword)
+        identityWithPasswordInfo <- findPasswordProfiles(user.main)
       ) yield {
         identityWithPasswordInfo.passwordInfo.get
       }
     }
+  }
+
+  private def findProfile(p: BasicProfile): Option[BasicProfile] = {
+    User.find(p.providerId, p.userId)
+  }
+
+  private def findPasswordProfiles(p: BasicProfile): Option[BasicProfile] = {
+    User.find(UsernamePasswordProvider.UsernamePassword, p.userId)
+  }
+
+  private def createNewProfile(user: BasicProfile): User = {
+    User.save(user)
+    new User(user, List(user))
+  }
+
+  private def updateProfile(user: BasicProfile, existedUser:BasicProfile): Future[User] = {
+    Future.successful(new User(user, List(user)))
   }
 }
