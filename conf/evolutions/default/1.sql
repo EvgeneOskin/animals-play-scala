@@ -12,7 +12,7 @@ CREATE TABLE OAuth2Info (
     id SERIAL PRIMARY KEY,
     accessToken VARCHAR(255) NOT NULL,
     tokenType VARCHAR(255),
-    expiresIn BIGINT UNSIGNED,
+    expiresIn BIGINT,
     refreshToken VARCHAR(255)
 );
 
@@ -33,14 +33,10 @@ CREATE TABLE UserProfile (
     avatarUrl VARCHAR(255) NULL,
     authMethod VARCHAR(12) NULL,
 
-    oAuth1InfoId BIGINT UNSIGNED NULL,
-    oAuth2InfoId BIGINT UNSIGNED NULL,
-    passwordInfoId BIGINT UNSIGNED NULL,
-
-    FOREIGN KEY (oAuth1InfoId) REFERENCES OAuth1Info(id)
-    FOREIGN KEY (oAuth2InfoId) REFERENCES OAuth2Info(id)
-    FOREIGN KEY (passwordInfoId) REFERENCES PasswordInfo(id)
-);
+    oAuth1InfoId BIGINT NULL REFERENCES OAuth1Info(id),
+    oAuth2InfoId BIGINT NULL REFERENCES OAuth2Info(id),
+    passwordInfoId BIGINT NULL REFERENCES PasswordInfo(id)
+  );
 
 # --- !Downs
 
