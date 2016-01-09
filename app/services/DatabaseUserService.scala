@@ -22,20 +22,17 @@ class DatabaseUserService @Inject() (
   val logger = Logger("application.controllers.DatabaseUserService")
 
   def find(providerId: String, userId: String): Future[Option[BasicProfile]] = {
-    if (logger.isDebugEnabled) {
-      logger.debug("find user for providerId=%s useId=%s".format(providerId, userId))
-    }
+    logger.debug("find user for providerId=%s userId=%s".format(providerId, userId))
     Future.successful(User.find(providerId, userId))
   }
 
   def findByEmailAndProvider(email: String, providerId: String): Future[Option[BasicProfile]] = {
-    if (logger.isDebugEnabled) {
-      logger.debug("find user for providerId=%s email=%s".format(providerId, email))
-    }
+    logger.debug("find user for providerId=%s email=%s".format(providerId, email))
     Future.successful(User.findByEmailAndProvider(email, providerId))
   }
 
   def save(user: BasicProfile, mode: SaveMode): Future[User] = {
+    logger.debug("Save user with providerId=%s email=%s mode=%s".format(user.providerId, user.email, mode))
     mode match {
       case SaveMode.SignUp =>
         Future.successful(createNewProfile(user))
@@ -59,6 +56,7 @@ class DatabaseUserService @Inject() (
   }
 
   def link(current: User, to: BasicProfile): Future[User] = {
+    logger.debug("Link profile with providerId=%s to user with userId=%s".format(to.providerId, current.main.userId))
     User.find(to.providerId, current.main.userId) match {
       case Some(_) => Future.successful(current)
       case None => {
@@ -79,6 +77,7 @@ class DatabaseUserService @Inject() (
   }
 
   def saveToken(token: MailToken): Future[MailToken] = {
+    logger.debug("Save mail token")
     Future.successful {
       cache.set(token.uuid, token, (token.expirationTime.getMillis - (new DateTime).getMillis) millis)
       token
@@ -86,10 +85,12 @@ class DatabaseUserService @Inject() (
   }
 
   def findToken(token: String): Future[Option[MailToken]] = {
+    logger.debug("Find mail token")
     Future.successful { cache.get[MailToken](token) }
   }
 
   def deleteToken(uuid: String): Future[Option[MailToken]] = {
+    logger.debug("Delete mail token")
     Future.successful {
       val token =cache.get[MailToken](uuid)
       cache.remove(uuid)

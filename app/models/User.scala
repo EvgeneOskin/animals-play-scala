@@ -2,8 +2,9 @@
 package models
 
 import java.math.BigDecimal
-import java.sql.{Types, Connection, PreparedStatement}
+import java.sql.{Types, Connection, Statement, PreparedStatement}
 import scala.util.{Try, Success, Failure}
+import play.api.Logger
 import securesocial.core._
 import securesocial.core.providers.{ UsernamePasswordProvider }
 
@@ -37,9 +38,9 @@ object User {
     PasswordInfo.salt
 
   from UserProfile
-  join OAuth1Info on UserProfile.oAuth1InfoId = OAuth1Info.id
-  join OAuth2Info on UserProfile.oAuth2InfoId = OAuth2Info.id
-  join PasswordInfo on UserProfile.passwordInfoId = PasswordInfo.id
+  left join OAuth1Info on UserProfile.oAuth1InfoId = OAuth1Info.id
+  left join OAuth2Info on UserProfile.oAuth2InfoId = OAuth2Info.id
+  left join PasswordInfo on UserProfile.passwordInfoId = PasswordInfo.id
   """
 
   def find(providerId: String, userId: String, baseFindQuery: String = baseQuery): Option[BasicProfile] = {
@@ -111,31 +112,31 @@ object User {
       val finalStm = query(conn)
       val res = finalStm.executeQuery
       if (res.next) {
-        val oauth1Info = if (res.getLong("UserProfile.oAuth1InfoId") == 0) {
+        val oauth1Info = if (res.getLong("oAuth1InfoId") == 0) {
           None
         } else {
           val keys = Seq("token", "secret").map("OAuth1Info." + _)
           val values = keys.map { res.getString(_) }
            Some(new OAuth1Info(values(0), values(2)))
         }
-        val oauth2Info = if (res.getLong("UserProfile.oAuth2InfoId") == 0) {
+        val oauth2Info = if (res.getLong("oAuth2InfoId") == 0) {
           None
         } else {
-          val keys = Seq("accessToken", "tokenType", "refreshToken").map("OAuth2Info." + _)
+          val keys = Seq("accessToken", "tokenType", "refreshToken")
           val values = keys.map { res.getString(_) }
           Some(new OAuth2Info(
             values(0), Some(values(1)),
-            Some(res.getInt("OAuth2Info.expiresIn")), Some(values(2))
+            Some(res.getInt("expiresIn")), Some(values(2))
           ))
         }
-        val passwordInfo = if (res.getLong("UserProfile.passwordInfoId") == 0) {
+        val passwordInfo = if (res.getLong("passwordInfoId") == 0) {
           None
         } else {
-          val keys = Seq("hasher", "password", "salt").map("PasswordInfo." + _)
+          val keys = Seq("hasher", "password", "salt")
           val values = keys.map { res.getString(_) }
           Some(new PasswordInfo(values(0), values(1), Some(values(2))))
         }
-        val keys = Seq("providerId", "userId", "firstName", "email", "avatarUrl", "authMethod").map("UserProfile." + _)
+        val keys = Seq("providerId", "userId", "firstName", "lastName", "email", "avatarUrl", "authMethod")
         val values = keys.map { res.getString(_) }
         profile = Some(new BasicProfile(
           values(0), values(1),
@@ -190,8 +191,8 @@ object User {
       case BasicProfile(providerId, userId, firstName, lastName, fullName, email, avatarUrl, authMethod, oAuth1Info, oAuth2Info, passwordInfo) => {
         val stm = conn.prepareStatement("""
           INSERT INTO UserProfile(providerId, userId, firstName, lastName, email, avatarUrl, authMethod, oAuth1InfoId, oAuth2InfoId, passwordInfoId)
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, Statement.RETURN_GENERATED_KEYS)
         Seq((3, firstName), (4, lastName), (5, email), (6, avatarUrl)).map { i=>
           JDBCHelper.setOptionString(stm, i._1, i._2)
         }
@@ -211,8 +212,8 @@ object User {
       case None => Success(None)
       case Some(OAuth1Info(token, secret)) => {
         val stm = conn.prepareStatement("""
-          INSERT INTO OAuth1Info(token, secret) (?, ?)
-        """)
+          INSERT INTO OAuth1Info(token, secret) VALUES (?, ?)
+        """, Statement.RETURN_GENERATED_KEYS)
         JDBCHelper.setValue(stm, 1, token)
         JDBCHelper.setValue(stm, 2, secret)
         JDBCHelper.insertRow(stm) match {
@@ -229,12 +230,12 @@ object User {
       case Some(OAuth2Info(accessToken, tokenType, expiresIn, refreshToken)) => {
         val stm = conn.prepareStatement("""
           INSERT INTO OAuth2Info(accessToken, tokenType, expiresIn, refreshToken)
-          (?, ?, ?, ?)
-        """)
+          VALUES (?, ?, ?, ?)
+        """, Statement.RETURN_GENERATED_KEYS)
         JDBCHelper.setValue(stm, 1, accessToken)
-        JDBCHelper.setValue(stm, 2, tokenType)
-        JDBCHelper.setValue(stm, 3, expiresIn)
-        JDBCHelper.setValue(stm, 4, refreshToken)
+        JDBCHelper.setOptionString(stm, 2, tokenType)
+        JDBCHelper.setOptionInt(stm, 3, expiresIn)
+        JDBCHelper.setOptionString(stm, 4, refreshToken)
         JDBCHelper.insertRow(stm) match {
           case Success(id) => Success(Some(id))
           case Failure(e) => Failure(e)
@@ -249,11 +250,11 @@ object User {
       case Some(PasswordInfo(hasher, password, salt)) => {
         val stm = conn.prepareStatement("""
           INSERT INTO PasswordInfo(hasher, password, salt)
-          (?, ?, ?)
-        """)
+          VALUES (?, ?, ?)
+        """, Statement.RETURN_GENERATED_KEYS)
         JDBCHelper.setValue(stm, 1, hasher)
         JDBCHelper.setValue(stm, 2, password)
-        JDBCHelper.setValue(stm, 3, salt)
+        JDBCHelper.setOptionString(stm, 3, salt)
         JDBCHelper.insertRow(stm) match {
           case Success(id) => Success(Some(id))
           case Failure(e) => Failure(e)
@@ -269,10 +270,13 @@ object JDBCHelper {
     val count = stm.executeUpdate
     if (count == 1) {
       val keys = stm.getGeneratedKeys
-      keys.next
-      Success(keys.getInt(1))
+      if (keys.next) {
+        Success(keys.getInt(1))
+      } else {
+        Failure(new DBException("Can not insert Row: \n%s" + stm))
+      }
     } else {
-      Failure(new DBException("Can not insert Row: \n" + stm))
+      Failure(new DBException("Can not insert Row: \n%s" + stm))
     }
   }
 
