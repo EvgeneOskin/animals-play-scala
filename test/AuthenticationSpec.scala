@@ -10,7 +10,7 @@ class AuthenticationSpec extends Specification {
 
   "Authentication" should {
     "render the login page" in new WithApplication{
-      val loginPage = route(FakeRequest(GET, "/authenticate/userpass")).get
+      val loginPage = route(FakeRequest(GET, "/login")).get
 
       status(loginPage) must equalTo(OK)
       contentType(loginPage) must beSome.which(_ == "text/html")

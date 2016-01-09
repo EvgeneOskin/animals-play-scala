@@ -16,7 +16,7 @@ class IntegrationSpec extends Specification {
     }
 
     "show login page" in new WithBrowser {
-      browser.goTo("http://localhost:" + port + "/authenticate/userpass")
+      browser.goTo("http://localhost:" + port + "/login")
       browser.pageSource must contain("Login.")
     }
   }

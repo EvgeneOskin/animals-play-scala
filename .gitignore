@@ -13,3 +13,4 @@ tmp
 dist
 .cache
 .DS_Store
+public/components

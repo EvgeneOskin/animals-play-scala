@@ -1,0 +1,22 @@
+{
+  "name": "animals-play-scala",
+  "homepage": "https://github.com/EvgeneOskin/animals-play-scala",
+  "authors": [
+    "EvgeneOskin <eoskin@crystalnix.com>"
+  ],
+  "description": "",
+  "main": "",
+  "moduleType": [],
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bootstrap": "~3.3.6",
+    "jquery": "~2.2.0"
+  }
+}
