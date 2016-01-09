@@ -6,13 +6,14 @@ import securesocial.core.providers.utils.{ Mailer, PasswordHasher, PasswordValid
 import securesocial.core.RuntimeEnvironment
 import securesocial.core.providers._
 import securesocial.core.services.{ UserService }
-import services.{DatabaseUserService, UserEnvironment}
+import services.{DatabaseUserService, UserEnvironment, ImplementedUserEnvironment}
 import models.{User}
 
 class AnimalModule extends Module {
   def bindings(environment: Environment, configuration: Configuration) = {
     Seq(
-      bind[RuntimeEnvironment].to[UserEnvironment],
+      bind[UserEnvironment].to[ImplementedUserEnvironment],
+      bind[RuntimeEnvironment].to[ImplementedUserEnvironment],
       bind[UserService[User]].to[DatabaseUserService]
       //    bind[User].to[User]
     )

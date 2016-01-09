@@ -8,9 +8,11 @@ import securesocial.core.services.{ UserService }
 import scala.collection.immutable.ListMap
 import models.{User}
 
-class UserEnvironment extends RuntimeEnvironment.Default {
+abstract class UserEnvironment extends RuntimeEnvironment.Default {
   type U = User
+}
 
+class ImplementedUserEnvironment extends UserEnvironment {
   def userService: UserService[U] = {
     import play.api.Play.current
     current.injector.instanceOf[UserService[U]]
