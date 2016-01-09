@@ -17,7 +17,6 @@ object User {
     UserProfile.userId,
     UserProfile.firstName,
     UserProfile.lastName,
-    UserProfile.fullName,
     UserProfile.email,
     UserProfile.avatarUrl,
     UserProfile.authMethod,
@@ -47,7 +46,7 @@ object User {
     findUserProfile { conn =>
       val query = s"""
         $baseFindQuery
-        where UserProfile.providerId = ? && UserProfile.userId = ?
+        where UserProfile.providerId=? AND UserProfile.userId=?
         limit 1
       """
       val prep = conn.prepareStatement(query)
@@ -61,7 +60,7 @@ object User {
     findUserProfile { conn =>
       val query = s"""
         $baseQuery
-        where UserProfile.providerId = ? && UserProfile.email = ?
+        where UserProfile.providerId = ? AND UserProfile.email = ?
         limit 1
       """
       val prep = conn.prepareStatement(query)
@@ -154,7 +153,7 @@ object User {
   def getPasswordInfoId(conn: Connection, userId: String): Try[Int] = {
     val stm = conn.prepareStatement("""
       SELECT UserProfile.passwordInfoId FROM UserProfile
-      WHERE userId=? && providerId=?
+      WHERE userId=? AND providerId=?
     """)
     JDBCHelper.setValue(stm, 1, userId)
     JDBCHelper.setValue(stm, 2, UsernamePasswordProvider.UsernamePassword)
