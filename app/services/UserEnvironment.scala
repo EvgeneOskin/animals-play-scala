@@ -12,7 +12,8 @@ class UserEnvironment extends RuntimeEnvironment.Default {
   type U = User
 
   def userService: UserService[U] = {
-    NewInstanceInjector.instanceOf[UserService[U]]
+    import play.api.Play.current
+    current.injector.instanceOf[UserService[U]]
   }
 
   override lazy val providers = ListMap(
