@@ -1,0 +1,12 @@
+web:
+  build: .
+  links:
+    - db:db
+db:
+  image: postgres
+  environment:
+    POSTGRES_PASSWORD: secret
+    POSTGRES_USER: animal
+  ports:
+    - "5432:5432"
+
