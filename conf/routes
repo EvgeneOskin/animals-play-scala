@@ -3,29 +3,42 @@
 # ~~~~
 
 # Home page
-GET     /                           controllers.Application.index
+GET / controllers.Application.index
+GET /pet/ controllers.PetController.index
+POST /pet/ controllers.PetController.create
+GET /pet/:id/ controllers.PetController.get(id: String)
+PUT /pet/:id/ controllers.PetController.update(id: String)
+
+# API routes
+# Breed endpoints
+GET /api/v1/breed/ controllers.api.BreedApiController.index
+POST /api/v1/breed/ controllers.api.BreedApiController.create
+# Pet endpoints
+GET /api/v1/pet/ controllers.api.PetApiController.list
+POST /api/v1/pet/ controllers.api.PetApiController.create
+GET /api/v1/pet/:id/ controllers.api.PetApiController.retrieve(id: String)
+PUT /api/v1/pet/:id/ controllers.api.PetApiController.update(id: String)
 
 # Map static resources from the /public folder to the /assets URL path
-GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
-
+GET /assets/*file controllers.Assets.versioned(path="/public", file: Asset)
 
 # Login page
-GET     /login                      securesocial.controllers.LoginPage.login
-GET     /logout                     securesocial.controllers.LoginPage.logout
+GET /login securesocial.controllers.LoginPage.login
+GET /logout securesocial.controllers.LoginPage.logout
 
 # User Registration and password handling
-GET     /signup                     securesocial.controllers.Registration.startSignUp
-POST    /signup                     securesocial.controllers.Registration.handleStartSignUp
-GET     /signup/:token              securesocial.controllers.Registration.signUp(token)
-POST    /signup/:token              securesocial.controllers.Registration.handleSignUp(token)
-GET     /reset                      securesocial.controllers.PasswordReset.startResetPassword
-POST    /reset                      securesocial.controllers.PasswordReset.handleStartResetPassword
-GET     /reset/:token               securesocial.controllers.PasswordReset.resetPassword(token)
-POST    /reset/:token               securesocial.controllers.PasswordReset.handleResetPassword(token)
-GET     /password                   securesocial.controllers.PasswordChange.page
-POST    /password                   securesocial.controllers.PasswordChange.handlePasswordChange
+GET /signup securesocial.controllers.Registration.startSignUp
+POST /signup securesocial.controllers.Registration.handleStartSignUp
+GET /signup/:token securesocial.controllers.Registration.signUp(token)
+POST /signup/:token securesocial.controllers.Registration.handleSignUp(token)
+GET /reset securesocial.controllers.PasswordReset.startResetPassword
+POST /reset securesocial.controllers.PasswordReset.handleStartResetPassword
+GET /reset/:token securesocial.controllers.PasswordReset.resetPassword(token)
+POST /reset/:token securesocial.controllers.PasswordReset.handleResetPassword(token)
+GET /password securesocial.controllers.PasswordChange.page
+POST /password securesocial.controllers.PasswordChange.handlePasswordChange
 
 # Providers entry points
-GET     /authenticate/:provider     securesocial.controllers.ProviderController.authenticate(provider)
-POST    /authenticate/:provider     securesocial.controllers.ProviderController.authenticateByPost(provider)
+GET /authenticate/:provider securesocial.controllers.ProviderController.authenticate(provider)
+POST /authenticate/:provider securesocial.controllers.ProviderController.authenticateByPost(provider)
 # GET     /not-authorized             securesocial.controllers.ProviderController.notAuthorized

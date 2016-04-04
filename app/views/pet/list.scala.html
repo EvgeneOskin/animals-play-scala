@@ -1,0 +1,7 @@
+@(pets: Seq[models.Pet])
+
+<ul class="list-group">
+  @pets.map { pet =>
+    <li class="list-group-item">@pet.link_to(pet)</li>
+  }
+</ul>

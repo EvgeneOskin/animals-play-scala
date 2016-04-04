@@ -1,0 +1,23 @@
+@(pet: models.Pet)(userName: String)
+
+@main("Pet") {
+  <div>
+    Name: @pet.name
+  </div>
+  <div>
+    Gender: @pet.gender
+  </div>
+  <div>
+    Owner: @pet.owner.email
+  </div>
+  <div>
+    Father: <%= link_to_father @pet, 'N/A' %>
+  </div>
+  <div>
+    Mother: <%= link_to_mother @pet, 'N/A' %>
+  </div>
+  <div>
+    Children:
+    @pet.list(pet.children)
+  </div>
+}

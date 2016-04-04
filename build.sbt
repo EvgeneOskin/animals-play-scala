@@ -14,7 +14,8 @@ libraryDependencies ++= Seq(
   evolutions,
   "org.postgresql" % "postgresql" % "9.4-1201-jdbc41",
   "ws.securesocial" %% "securesocial" % "3.0-M4",
-  "com.typesafe.play" %% "play-mailer" % "3.0.0-M1"
+  "com.typesafe.play" %% "play-mailer" % "3.0.0-M1",
+  "com.typesafe.play" %% "anorm" % "2.4.0"
 )
 
 resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"

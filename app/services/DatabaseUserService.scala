@@ -22,7 +22,7 @@ class DatabaseUserService @Inject() (
   val logger = Logger("application.controllers.DatabaseUserService")
 
   def find(providerId: String, userId: String): Future[Option[BasicProfile]] = {
-    logger.debug("find user for providerId=%s userId=%s".format(providerId, userId))
+    logger.debug("find user for providerId=%s useId=%s".format(providerId, userId))
     Future.successful(User.find(providerId, userId))
   }
 
